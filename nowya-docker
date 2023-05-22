@@ -1,0 +1,57 @@
+#!/bin/bash
+architecture=$(uname -m)
+if [[ $architecture == "x86_64" ]]; then
+    ARQ="amd64"
+elif [[ $architecture == "aarch64" ]]; then
+    ARQ="arm64"
+else
+    echo "Arquitectura desconocida: $architecture"
+fi
+URL="https://download.docker.com/linux/debian/dists/bullseye/pool/stable/$ARQ"
+cnerd="containerd.io"
+dbp="docker-buildx-plugin"
+dcc="docker-ce-cli"
+dcere="docker-ce-rootless-extras"
+dce="docker-ce"
+dcp="docker-compose-plugin"
+dsp="docker-scan-plugin"
+curl -s $URL/ > paquetes.html
+grep -oP '(?<=href=")[^"]*.deb' paquetes.html > urls.txt
+grep $cnerd urls.txt >> $cnerd.txt
+grep -oP '[0-9]+\.[0-9]+\.[0-9]+' $cnerd.txt | sort -V | tail -n 1 | xargs -I{} grep {} $cnerd.txt > $cnerd.vxt
+grep $dbp urls.txt >> $dbp.txt
+grep -oP '[0-9]+\.[0-9]+\.[0-9]+' $dbp.txt | sort -V | tail -n 1 | xargs -I{} grep {} $dbp.txt > $dbp.vxt
+grep $dcc urls.txt >> $dcc.txt
+grep -oP '[0-9]+\.[0-9]+\.[0-9]+' $dcc.txt | sort -V | tail -n 1 | xargs -I{} grep {} $dcc.txt > $dcc.vxt
+grep $dcere urls.txt >> $dcere.txt
+grep -oP '[0-9]+\.[0-9]+\.[0-9]+' $dcere.txt | sort -V | tail -n 1 | xargs -I{} grep {} $dcere.txt > $dcere.vxt
+grep docker-ce_ urls.txt >> $dce.txt
+grep -oP '[0-9]+\.[0-9]+\.[0-9]+' $dce.txt | sort -V | tail -n 1 | xargs -I{} grep {} $dce.txt > $dce.vxt
+grep $dcp urls.txt >> $dcp.txt
+grep -oP '[0-9]+\.[0-9]+\.[0-9]+' $dcp.txt | sort -V | tail -n 1 | xargs -I{} grep {} $dcp.txt > $dcp.vxt
+grep $dsp urls.txt >> $dsp.txt
+grep -oP '[0-9]+\.[0-9]+\.[0-9]+' $dsp.txt | sort -V | tail -n 1 | xargs -I{} grep {} $dsp.txt > $dsp.vxt
+CONTAINERD=$(cat $cnerd.vxt | awk '{print $1}')
+BuildxPlugin=$(cat $dbp.vxt | awk '{print $1}')
+DockerCeCli=$(cat $dcc.vxt | awk '{print $1}')
+DockerCeRootE=$(cat $dcere.vxt | awk '{print $1}')
+DockerCe=$(cat $dce.vxt | awk '{print $1}')
+DockerCompose=$(cat $dcp.vxt | awk '{print $1}')
+DockerScanPlugin=$(cat $dsp.vxt | awk '{print $1}')
+wget $URL/$CONTAINERD
+wget $URL/$BuildxPlugin
+wget $URL/$DockerCeCli
+wget $URL/$DockerCeRootE
+wget $URL/$DockerCe
+wget $URL/$DockerCompose
+wget $URL/$DockerScanPlugin
+mkdir dockers listas
+mv *.deb dockers/
+mv *.txt *.vxt listas/
+cd dockers 
+dpkg -i containerd.io_*_*.deb
+dpkg -i docker-ce-cli_*_*.deb
+dpkg -i docker-ce_*_*.deb
+dpkg -i docker-buildx-plugin_*_*.deb
+dpkg -i docker-compose-plugin_*_*.deb
+docker version

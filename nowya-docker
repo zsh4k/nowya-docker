@@ -1,57 +1,99 @@
 #!/bin/bash
-architecture=$(uname -m)
-if [[ $architecture == "x86_64" ]]; then
-    ARQ="amd64"
-elif [[ $architecture == "aarch64" ]]; then
-    ARQ="arm64"
-else
-    echo "Arquitectura desconocida: $architecture"
-fi
-URL="https://download.docker.com/linux/debian/dists/bullseye/pool/stable/$ARQ"
-cnerd="containerd.io"
+
+xt1="Instalación de Docker"
+xt2="Descargando Docker"
+xt3="Instalando Docker..."
+xt4="Version de Docker:"
+xt5="Arquitectura desconocida:"
+xt6="Verificando Dependencias"
+xt7="está instalado."
+
+cnerd="containerd"
 dbp="docker-buildx-plugin"
 dcc="docker-ce-cli"
 dcere="docker-ce-rootless-extras"
 dce="docker-ce"
 dcp="docker-compose-plugin"
 dsp="docker-scan-plugin"
-curl -s $URL/ > paquetes.html
-grep -oP '(?<=href=")[^"]*.deb' paquetes.html > urls.txt
-grep $cnerd urls.txt >> $cnerd.txt
-grep -oP '[0-9]+\.[0-9]+\.[0-9]+' $cnerd.txt | sort -V | tail -n 1 | xargs -I{} grep {} $cnerd.txt > $cnerd.vxt
-grep $dbp urls.txt >> $dbp.txt
-grep -oP '[0-9]+\.[0-9]+\.[0-9]+' $dbp.txt | sort -V | tail -n 1 | xargs -I{} grep {} $dbp.txt > $dbp.vxt
-grep $dcc urls.txt >> $dcc.txt
-grep -oP '[0-9]+\.[0-9]+\.[0-9]+' $dcc.txt | sort -V | tail -n 1 | xargs -I{} grep {} $dcc.txt > $dcc.vxt
-grep $dcere urls.txt >> $dcere.txt
-grep -oP '[0-9]+\.[0-9]+\.[0-9]+' $dcere.txt | sort -V | tail -n 1 | xargs -I{} grep {} $dcere.txt > $dcere.vxt
-grep docker-ce_ urls.txt >> $dce.txt
-grep -oP '[0-9]+\.[0-9]+\.[0-9]+' $dce.txt | sort -V | tail -n 1 | xargs -I{} grep {} $dce.txt > $dce.vxt
-grep $dcp urls.txt >> $dcp.txt
-grep -oP '[0-9]+\.[0-9]+\.[0-9]+' $dcp.txt | sort -V | tail -n 1 | xargs -I{} grep {} $dcp.txt > $dcp.vxt
-grep $dsp urls.txt >> $dsp.txt
-grep -oP '[0-9]+\.[0-9]+\.[0-9]+' $dsp.txt | sort -V | tail -n 1 | xargs -I{} grep {} $dsp.txt > $dsp.vxt
-CONTAINERD=$(cat $cnerd.vxt | awk '{print $1}')
-BuildxPlugin=$(cat $dbp.vxt | awk '{print $1}')
-DockerCeCli=$(cat $dcc.vxt | awk '{print $1}')
-DockerCeRootE=$(cat $dcere.vxt | awk '{print $1}')
-DockerCe=$(cat $dce.vxt | awk '{print $1}')
-DockerCompose=$(cat $dcp.vxt | awk '{print $1}')
-DockerScanPlugin=$(cat $dsp.vxt | awk '{print $1}')
-wget $URL/$CONTAINERD
-wget $URL/$BuildxPlugin
-wget $URL/$DockerCeCli
-wget $URL/$DockerCeRootE
-wget $URL/$DockerCe
-wget $URL/$DockerCompose
-wget $URL/$DockerScanPlugin
-mkdir dockers listas
+ext=".deb"
+
+urlDefault="https://download.docker.com/linux/debian/dists/buster/pool/stable/"
+so='/^ID=/{print $2}'
+ver='/^VERSION_CODENAME=/{print $2}'
+iOS(){
+    awk -F'=' "$1" /etc/os-release | tr -d '"'
+}
+so=$(iOS "$so")
+ver=$(iOS "$ver")
+
+archi=$(uname -m)
+if [[ $archi == "x86_64" ]]; then
+    ARQ="amd64"
+elif [[ $archi == "aarch64" ]]; then
+    ARQ="arm64"
+else
+    echo "$xt5 $archi"
+fi
+
+case $so in
+    centos|debian|fedora|raspbian|rhel|sles|static|ubuntu)
+        url="https://download.docker.com/linux/$so/dists/$ver/pool/stable"
+        ;;
+    *)
+        url="$urlDefault"
+        ;;
+esac
+URL="$url/$ARQ"
+
+e(){
+    echo -e "\e[1;${1}m${2}\e[0m"
+}
+check() {
+    for name in "$@"; do
+        dpkg -s "$name" >/dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            e 96 "$xt6"
+            e 96 "$name $xt7"
+        else
+            apt install "$name" -y
+        fi
+    done
+}
+D(){
+    echo $URL/$(curl -s $URL/ | 
+    grep -oP '(?<=href=")[^"]*'"$1"'[^"]*\.deb' | 
+    sort -V | 
+    tail -n 1) |  
+    xargs curl -O -J -L 
+}
+I(){
+    dpkg -i $1*$ext
+}
+check "curl" "dbus-user-session"
+cd ~/
+e 96 "$xt1"
+e 96 "$xt2"
+D $cnerd
+D $dbp
+D $dcc
+D $dcere
+D $dce
+D $dcp
+D $dsp
+
+mkdir dockers
 mv *.deb dockers/
-mv *.txt *.vxt listas/
 cd dockers 
-dpkg -i containerd.io_*_*.deb
-dpkg -i docker-ce-cli_*_*.deb
-dpkg -i docker-ce_*_*.deb
-dpkg -i docker-buildx-plugin_*_*.deb
-dpkg -i docker-compose-plugin_*_*.deb
+
+e 96 "$xt3"
+I $cnerd
+I $dcc
+I $dce
+I $dbp
+I $dcp
+
+cd .. 
+rm -rf dockers
+
+e 96 "$xt4"
 docker version
